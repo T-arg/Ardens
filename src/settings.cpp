@@ -80,6 +80,8 @@ static void settings_read_line(
 
     ARDENS_INT_SETTING(display_current_modeling, 0, 3);
     ARDENS_INT_SETTING(display_palette, PALETTE_MIN, PALETTE_MAX);
+    ARDENS_INT_SETTING(custom_palette_bg, 0, 0xffffff);
+    ARDENS_INT_SETTING(custom_palette_fg, 0, 0xffffff);
     ARDENS_INT_SETTING(display_filtering, FILTER_MIN, FILTER_MAX);
     ARDENS_INT_SETTING(display_downsample, 1, 4);
     ARDENS_INT_SETTING(display_pixel_grid, PGRID_MIN, PGRID_MAX);
@@ -158,6 +160,8 @@ static void settings_write_all(ImGuiContext* ctx, ImGuiSettingsHandler* handler,
     ARDENS_BOOL_SETTING(ab.fx_busy);
 
     ARDENS_INT_SETTING(display_palette, PALETTE_MIN, PALETTE_MAX);
+    ARDENS_INT_SETTING(custom_palette_bg, 0, 0xffffff);
+    ARDENS_INT_SETTING(custom_palette_fg, 0, 0xffffff);
     ARDENS_INT_SETTING(display_filtering, FILTER_MIN, FILTER_MAX);
     ARDENS_INT_SETTING(display_downsample, 1, 4);
     ARDENS_INT_SETTING(display_pixel_grid, PGRID_MIN, PGRID_MAX);

@@ -139,6 +139,10 @@ extern platform_services_t platform_services;
 
 // platform-agnostic functionality (common.cpp)
 extern "C" int setparam(char const* name, char const* value);
+// Serial bridge for web pages: send bytes to the running game / read what the
+// game wrote to its USB serial port. Return the number of bytes handled.
+extern "C" int serial_write(uint8_t const* data, int len);
+extern "C" int serial_read(uint8_t* out, int max_len);
 extern "C" int load_file(
     char const* param, char const* filename, uint8_t const* data, size_t size);
 extern "C" int get_led_state(int component);
@@ -229,6 +233,7 @@ enum
     PALETTE_RETRO,
     PALETTE_LOW_CONTRAST,
     PALETTE_HIGH_CONTRAST,
+    PALETTE_CUSTOM,
 
     PALETTE_MAX_PLUS_ONE,
     PALETTE_MIN = PALETTE_DEFAULT,

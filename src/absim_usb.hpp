@@ -496,6 +496,44 @@ static void usb_drain_cdc_in(atmega32u4_t& cpu)
     usb_update_endpoint_interrupts(cpu);
 }
 
+// Host -> device: move queued serial bytes into the bulk OUT endpoint (the
+// CDC "RX" endpoint) when the game has finished reading the previous packet.
+static void usb_feed_cdc_out(atmega32u4_t& cpu)
+{
+    if(cpu.serial_rx.empty())
+        return;
+    auto const& host = cpu.usb.host;
+    if(!usb_device_attached(cpu) || !host.control_line_state_set)
+        return;
+
+    for(uint8_t i = 1; i < 7 && !cpu.serial_rx.empty(); ++i)
+    {
+        auto& ep = cpu.usb.endpoints[i];
+        if(!usb_ep_configured(ep) ||
+            usb_ep_in(ep) ||
+            usb_ep_type(ep) != USB_EPTYPE_BULK)
+            continue;
+
+        auto& bank = ep.banks[ep.cpu_bank & 1];
+        if(bank.ready)
+            continue; // previous packet not fully consumed yet
+
+        size_t n = std::min<size_t>(cpu.serial_rx.size(), bank.data.size());
+        if(ep.size != 0)
+            n = std::min<size_t>(n, ep.size);
+        for(size_t j = 0; j < n; ++j)
+            bank.data[j] = cpu.serial_rx[j];
+        cpu.serial_rx.erase(
+            cpu.serial_rx.begin(),
+            cpu.serial_rx.begin() + std::ptrdiff_t(n));
+        bank.length = uint16_t(n);
+        bank.offset = 0;
+        bank.ready = true;
+        ep.ueintx |= reg::bit::UEINTX::RXOUTI | reg::bit::UEINTX::FIFOCON;
+    }
+    usb_update_endpoint_interrupts(cpu);
+}
+
 static void usb_start_next_host_request(atmega32u4_t& cpu)
 {
     auto& host = cpu.usb.host;
@@ -958,6 +996,8 @@ void atmega32u4_t::usb_st_handler(atmega32u4_t& cpu, uint16_t ptr, uint8_t x)
         else if(cleared_rxouti && !usb_ep_in(ep))
         {
             usb_clear_fifo(ep);
+            if(!cpu.serial_rx.empty())
+                usb_schedule_host(cpu, USB_HOST_STEP_CYCLES);
         }
         else if(cleared_txini && usb_ep_in(ep))
         {
@@ -1013,7 +1053,10 @@ void atmega32u4_t::update_usb()
             if(usb.host.phase == usb_fake_host_t::PHASE_IDLE)
                 usb.host.phase = usb_fake_host_t::PHASE_SET_ADDRESS;
             if(usb.host.phase == usb_fake_host_t::PHASE_ENUMERATED)
+            {
                 usb_drain_cdc_in(*this);
+                usb_feed_cdc_out(*this);
+            }
             else if(!usb.control.active)
                 usb_start_next_host_request(*this);
         }
@@ -1021,6 +1064,17 @@ void atmega32u4_t::update_usb()
 
     usb_update_endpoint_interrupts(*this);
     usb_schedule(*this);
+}
+
+void atmega32u4_t::usb_serial_receive(uint8_t const* data, size_t n)
+{
+    constexpr size_t MAX_QUEUED = 64 * 1024;
+    if(!data || n == 0)
+        return;
+    size_t room = serial_rx.size() < MAX_QUEUED ? MAX_QUEUED - serial_rx.size() : 0;
+    n = std::min(n, room);
+    serial_rx.insert(serial_rx.end(), data, data + n);
+    usb_schedule_host(*this, USB_HOST_STEP_CYCLES);
 }
 
 }

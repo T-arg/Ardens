@@ -148,9 +148,13 @@ desktop, use any of the command-line option forms shown above.
 | `save` | URL or path to save data. |
 | `z` | Toggle player/full-zoom mode: `0`, `1`, `false`, `true`, `off`, `on`, `no`, `yes`. |
 | `g`, `grid` | Pixel grid: `none`, `normal`, `red`, `green`, `blue`, `cyan`, `magenta`, `yellow`, `white`, or numeric value. |
-| `p`, `palette` | Display palette: `default`, `retro`, `lowcontrast`, `highcontrast`, or numeric value. |
+| `p`, `palette` | Display palette: `default`, `retro`, `lowcontrast`, `highcontrast`, `custom`, or numeric value. |
+| `fg`, `foreground` | Foreground (lit pixel) color as HTML hex, e.g. `ff8800`, `f80`, `#ff8800` (use `%23ff8800` in URLs) or a basic color name. Selects the `custom` palette. Default `ffffff`. |
+| `bg`, `background` | Background (unlit pixel) color, same format as `fg`. Selects the `custom` palette. Default `000000`. |
 | `af`, `autofilter` | Temporal display filtering for grayscale games: boolean value. |
 | `f`, `filter` | Upscaling filter: `none`, `scale2x`, `scale3x`, `scale4x`, `hq2x`, `hq3x`, `hq4x`, or numeric value. |
+| `rz`, `reczoom` | Integer zoom for GIF recordings: `1` to `4` (4 gives 512x256). Works in the player, which has no scaling filters. |
+| `gifcs` | GIF frame delay in hundredths of a second, `2` to `20`; default `4` (25 fps). Use `2` for 50 fps, but browsers may play such GIFs slower than real time. |
 | `ds`, `downsample` | Integer downsample ratio after filtering: `1` to `4`. |
 | `ori`, `orientation` | Display rotation: `0`/`normal`, `90`/`cw`/`cw90`, `180`/`flip`, `270`/`ccw`/`ccw90`, or `0` to `3`. |
 | `v`, `volume` | Audio gain from `0` to `200`; default is `100`. |

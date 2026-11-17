@@ -43,7 +43,7 @@ void modal_settings()
 
     static char const* const PALETTE_ITEMS[] =
     {
-            "Default", "Retro", "Low Contrast", "High Contrast",
+            "Default", "Retro", "Low Contrast", "High Contrast", "Custom",
     };
     constexpr int NUM_PALETTE_ITEMS = sizeof(PALETTE_ITEMS) / sizeof(PALETTE_ITEMS[0]);
     static_assert(NUM_PALETTE_ITEMS == PALETTE_MAX + 1, "");
@@ -207,6 +207,37 @@ void modal_settings()
                 if(Combo("##palettecombo", &settings.display_palette,
                     PALETTE_ITEMS, NUM_PALETTE_ITEMS))
                     update_settings();
+
+                if(settings.display_palette == PALETTE_CUSTOM)
+                {
+                    auto color_row = [](char const* label, char const* id, int& rgb)
+                    {
+                        TableNextRow();
+                        TableSetColumnIndex(0);
+                        AlignTextToFramePadding();
+                        TextUnformatted(label);
+                        TableSetColumnIndex(1);
+                        SetNextItemWidth(-1.f);
+                        float c[3] =
+                        {
+                            float((rgb >> 16) & 0xff) / 255.f,
+                            float((rgb >> 8) & 0xff) / 255.f,
+                            float(rgb & 0xff) / 255.f,
+                        };
+                        if(ColorEdit3(id, c, ImGuiColorEditFlags_DisplayHex))
+                        {
+                            rgb = (int(c[0] * 255.f + 0.5f) << 16) |
+                                (int(c[1] * 255.f + 0.5f) << 8) |
+                                int(c[2] * 255.f + 0.5f);
+                            return true;
+                        }
+                        return false;
+                    };
+                    if(color_row("Background", "##custombg", settings.custom_palette_bg))
+                        update_settings();
+                    if(color_row("Foreground", "##customfg", settings.custom_palette_fg))
+                        update_settings();
+                }
 
 #ifndef ARDENS_NO_SCALING
                 TableNextRow();

@@ -102,6 +102,8 @@ struct settings_t
 
     int display_current_modeling = 0;
     int display_palette = 0;
+    int custom_palette_bg = 0x000000; // RGB, used by PALETTE_CUSTOM (x = 0)
+    int custom_palette_fg = 0xffffff; // RGB, used by PALETTE_CUSTOM (x = 255)
     int display_filtering = FILTER_NONE;
     int display_downsample = 1;
     int display_pixel_grid = 0;
@@ -110,6 +112,7 @@ struct settings_t
     int recording_filtering = FILTER_NONE;
     int recording_downsample = 1;
     int recording_zoom = 1;
+    int recording_gif_cs = 4; // GIF frame delay in 1/100 s (4 = 25 fps)
     int recording_orientation = 0;
 
     // 50%, 75%, 100%, 125%, 150%, 175%, 200%

@@ -21,6 +21,7 @@ void atmega32u4_t::reset()
     eeprom_dirty = false;
 
     serial_bytes.clear();
+    serial_rx.clear();
 
     for(auto& h : ld_handlers) h = nullptr;
     for(auto& h : st_handlers) h = nullptr;

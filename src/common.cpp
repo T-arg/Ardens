@@ -692,12 +692,63 @@ static bool parse_grid(char const* value, int& result)
     return true;
 }
 
+// Parses an HTML color: "RRGGBB", "RGB" (optionally prefixed with '#' or the
+// URL-encoded "%23"), or a CSS color name from a small built-in set.
+static bool parse_html_color(char const* value, int& result)
+{
+    if(!value) return false;
+    std::string v = value;
+    if(v.compare(0, 3, "%23") == 0) v.erase(0, 3);
+    else if(!v.empty() && v[0] == '#') v.erase(0, 1);
+    else if(v.compare(0, 2, "0x") == 0 || v.compare(0, 2, "0X") == 0) v.erase(0, 2);
+
+    struct named_t { char const* name; int rgb; };
+    static constexpr named_t NAMED[] =
+    {
+        {"black", 0x000000}, {"white", 0xffffff}, {"red", 0xff0000},
+        {"green", 0x008000}, {"lime", 0x00ff00}, {"blue", 0x0000ff},
+        {"yellow", 0xffff00}, {"cyan", 0x00ffff}, {"aqua", 0x00ffff},
+        {"magenta", 0xff00ff}, {"fuchsia", 0xff00ff}, {"orange", 0xffa500},
+        {"purple", 0x800080}, {"pink", 0xffc0cb}, {"gray", 0x808080},
+        {"grey", 0x808080}, {"silver", 0xc0c0c0}, {"navy", 0x000080},
+        {"teal", 0x008080}, {"maroon", 0x800000}, {"olive", 0x808000},
+        {"brown", 0xa52a2a}, {"gold", 0xffd700},
+    };
+    for(auto const& n : NAMED)
+    {
+        if(string_equals_ignore_case(v.c_str(), n.name))
+        {
+            result = n.rgb;
+            return true;
+        }
+    }
+
+    if(v.size() != 3 && v.size() != 6) return false;
+    int digits[6];
+    for(size_t i = 0; i < v.size(); ++i)
+    {
+        char c = v[i];
+        if(c >= '0' && c <= '9') digits[i] = c - '0';
+        else if(c >= 'a' && c <= 'f') digits[i] = c - 'a' + 10;
+        else if(c >= 'A' && c <= 'F') digits[i] = c - 'A' + 10;
+        else return false;
+    }
+    int rgb = 0;
+    if(v.size() == 3)
+        for(int i = 0; i < 3; ++i) rgb = (rgb << 8) | (digits[i] * 17);
+    else
+        for(int i = 0; i < 6; i += 2) rgb = (rgb << 8) | (digits[i] * 16 + digits[i + 1]);
+    result = rgb;
+    return true;
+}
+
 static bool parse_palette(char const* value, int& result)
 {
     if(string_equals_ignore_case(value, "default")) result = PALETTE_DEFAULT;
     else if(string_equals_ignore_case(value, "retro")) result = PALETTE_RETRO;
     else if(string_equals_ignore_case(value, "lowcontrast")) result = PALETTE_LOW_CONTRAST;
     else if(string_equals_ignore_case(value, "highcontrast")) result = PALETTE_HIGH_CONTRAST;
+    else if(string_equals_ignore_case(value, "custom")) result = PALETTE_CUSTOM;
     else return parse_clamped_int(value, PALETTE_MIN, PALETTE_MAX, result);
     return true;
 }
@@ -779,6 +830,29 @@ static bool parse_display(char const* value, int& result)
     return true;
 }
 
+extern "C" int serial_write(uint8_t const* data, int len)
+{
+    if(!data || len <= 0 || !app.emulator)
+        return 0;
+    app.emulator->core_state.cpu.usb_serial_receive(data, size_t(len));
+    return len;
+}
+
+extern "C" int serial_read(uint8_t* out, int max_len)
+{
+    if(!out || max_len <= 0 || !app.emulator)
+        return 0;
+    auto& buf = app.emulator->core_state.cpu.serial_bytes;
+    size_t n = std::min<size_t>(buf.size(), size_t(max_len));
+    if(n == 0)
+        return 0;
+    for(size_t i = 0; i < n; ++i)
+        out[i] = buf[i];
+    // consumed bytes are removed so nothing is delivered twice
+    buf.erase(buf.begin(), buf.begin() + std::ptrdiff_t(n));
+    return int(n);
+}
+
 extern "C" int setparam(char const* name, char const* value)
 {
     if(!name || !value) return 0;
@@ -813,6 +887,22 @@ extern "C" int setparam(char const* name, char const* value)
         }
         r = 1;
     }
+    else if(!strcmp(name, "fg") || !strcmp(name, "foreground") ||
+        !strcmp(name, "bg") || !strcmp(name, "background"))
+    {
+        // Setting either color selects the custom two-color palette.
+        int parsed = 0;
+        if(parse_html_color(value, parsed))
+        {
+            if(name[0] == 'f')
+                settings.custom_palette_fg = parsed;
+            else
+                settings.custom_palette_bg = parsed;
+            settings.display_palette = PALETTE_CUSTOM;
+            update_settings();
+        }
+        r = 1;
+    }
     else if(!strcmp(name, "af") || !strcmp(name, "autofilter"))
     {
         bool parsed = false;
@@ -839,6 +929,25 @@ extern "C" int setparam(char const* name, char const* value)
         if(parse_clamped_int(value, 1, 4, parsed))
         {
             settings.display_downsample = parsed;
+            update_settings();
+        }
+        r = 1;
+    }
+    else if(!strcmp(name, "gifcs"))
+    {
+        // GIF frame delay in hundredths of a second (2 = 50 fps, 4 = 25 fps)
+        int parsed = 0;
+        if(parse_clamped_int(value, 2, 20, parsed))
+            settings.recording_gif_cs = parsed;
+        r = 1;
+    }
+    else if(!strcmp(name, "rz") || !strcmp(name, "reczoom"))
+    {
+        // integer pixel-zoom for GIF recordings (works without scaling filters)
+        int parsed = 0;
+        if(parse_clamped_int(value, 1, RECORDING_ZOOM_MAX, parsed))
+        {
+            settings.recording_zoom = parsed;
             update_settings();
         }
         r = 1;
@@ -1219,14 +1328,15 @@ void frame_logic()
         uint64_t dtps = dt * MS_TO_PS * 1000 / app.simulation_slowdown;
         if(gif_recording)
         {
-            constexpr uint64_t DT_20_MS = 20 * MS_TO_PS;
-            uint64_t ps = DT_20_MS - gif_ps_rem;
+            int const gif_cs = settings.recording_gif_cs;
+            uint64_t const DT_FRAME = uint64_t(gif_cs) * 10 * MS_TO_PS;
+            uint64_t ps = DT_FRAME - gif_ps_rem;
             while(dtps >= ps)
             {
                 advance_primary(ps);
-                send_gif_frame(2, recording_pixels(false));
+                send_gif_frame(gif_cs, recording_pixels(false));
                 dtps -= ps;
-                ps = DT_20_MS;
+                ps = DT_FRAME;
                 gif_ps_rem = 0;
             }
             gif_ps_rem += dtps;

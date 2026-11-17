@@ -925,7 +925,11 @@ struct atmega32u4_t
     void update_sound();
 
     // serial / USB
-    std::vector<uint8_t> serial_bytes;
+    std::vector<uint8_t> serial_bytes; // device -> host (what the game wrote)
+    std::vector<uint8_t> serial_rx;    // host -> device (not saved in snapshots)
+    // Queue bytes for the game to read over USB serial (like a PC typing into
+    // the serial port). Safe to call between emulation steps.
+    void usb_serial_receive(uint8_t const* data, size_t n);
     struct usb_bank_t
     {
         std::array<uint8_t, 512> data;

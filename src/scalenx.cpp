@@ -45,6 +45,19 @@ void palette_rgba(int palette, uint8_t x, uint8_t y[4])
         y[0] = y[1] = y[2] = t;
         break;
     }
+    case PALETTE_CUSTOM:
+    {
+        // linear blend between the background (x = 0) and foreground (x = 255)
+        uint32_t const bg = uint32_t(settings.custom_palette_bg);
+        uint32_t const fg = uint32_t(settings.custom_palette_fg);
+        for(int i = 0; i < 3; ++i)
+        {
+            int b = uint8_t(bg >> (8 * i));
+            int f = uint8_t(fg >> (8 * i));
+            y[2 - i] = uint8_t(b + (f - b) * int(x) / 255);
+        }
+        break;
+    }
     case PALETTE_DEFAULT:
     default:
         y[0] = y[1] = y[2] = x;
